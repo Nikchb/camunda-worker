@@ -1,0 +1,18 @@
+{
+  "name": "camunda-worker",
+  "version": "0.0.1",
+  "description": "Universal envelope over Camunda 7 and Camunda 8 workers with out of the box Dependency Injection support ",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Nikita Chubko",
+  "license": "ISC",
+  "dependencies": {
+    "@camunda8/sdk": "^8.6.21",
+    "camunda-external-task-client-js": "^3.1.0",
+    "ts-dependency-injection-container": "^1.1.1",
+    "typescript": "^5.7.3"
+  }
+}

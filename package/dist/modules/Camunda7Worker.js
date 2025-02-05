@@ -1,9 +1,17 @@
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 import { Variables, } from "camunda-external-task-client-js";
 import WorkerBase from "./WorkerBase.js";
 import BPMNError from "./BPMNError.js";
 import Retry from "./Retry.js";
-export class Camunda7Worker extends WorkerBase {
-    client;
+export default class Camunda7Worker extends WorkerBase {
     constructor(client, workerBase) {
         super(workerBase);
         this.client = client;
@@ -16,7 +24,7 @@ export class Camunda7Worker extends WorkerBase {
         return processVariables;
     }
     registerTask(taskType, handler, paramNames) {
-        this.client.subscribe(taskType, async ({ task, taskService, }) => {
+        this.client.subscribe(taskType, (_a) => __awaiter(this, [_a], void 0, function* ({ task, taskService, }) {
             let di;
             const localVariables = new Variables();
             try {
@@ -25,10 +33,10 @@ export class Camunda7Worker extends WorkerBase {
                 // get objects to inject into handler
                 const params = { task, taskService }; // task and taskService are always injected
                 for (const paramName of paramNames) {
-                    params[paramName] = await di.get(paramName);
+                    params[paramName] = yield di.get(paramName);
                 }
                 // call handler
-                const variables = await handler(task.variables.getAll(), params);
+                const variables = yield handler(task.variables.getAll(), params);
                 // complete task
                 return taskService.complete(task, this.mapProcessVariables(variables), localVariables);
             }
@@ -54,8 +62,8 @@ export class Camunda7Worker extends WorkerBase {
             }
             finally {
                 // dispose DI container
-                di?.dispose();
+                di === null || di === void 0 ? void 0 : di.dispose();
             }
-        });
+        }));
     }
 }

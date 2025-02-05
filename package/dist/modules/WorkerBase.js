@@ -1,6 +1,5 @@
 import DIContainerTemplate from "ts-dependency-injection-container";
 export default class WorkerBase {
-    diContainerTemplate;
     constructor(workerBase) {
         if (workerBase) {
             // use container template from another worker

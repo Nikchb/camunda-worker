@@ -10,7 +10,10 @@ import WorkerBase from "./WorkerBase.js";
 import BPMNError from "./BPMNError.js";
 import Retry from "./Retry.js";
 
-export class Camunda7Worker extends WorkerBase implements ICamundaWorker {
+export default class Camunda7Worker
+  extends WorkerBase
+  implements ICamundaWorker
+{
   private client: Client;
 
   constructor(client: Client, workerBase?: WorkerBase) {

@@ -1,7 +1,7 @@
 import { Client } from "camunda-external-task-client-js";
 import ICamundaWorker from "./ICamundaWorker.js";
 import WorkerBase from "./WorkerBase.js";
-export declare class Camunda7Worker extends WorkerBase implements ICamundaWorker {
+export default class Camunda7Worker extends WorkerBase implements ICamundaWorker {
     private client;
     constructor(client: Client, workerBase?: WorkerBase);
     private mapProcessVariables;

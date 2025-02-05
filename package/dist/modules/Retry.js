@@ -1,7 +1,6 @@
 export default class Retry extends Error {
-    retries;
     constructor(retries, message) {
-        super(message ?? "Retry");
+        super(message !== null && message !== void 0 ? message : "Retry");
         this.retries = retries;
     }
 }

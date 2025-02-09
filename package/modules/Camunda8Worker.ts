@@ -5,10 +5,7 @@ import WorkerBase from "./WorkerBase.js";
 import BPMNError from "./BPMNError.js";
 import Retry from "./Retry.js";
 
-export default class Camunda8Worker
-  extends WorkerBase
-  implements ICamundaWorker
-{
+export default class Camunda8Worker extends WorkerBase implements ICamundaWorker {
   private zeebe: ZeebeGrpcClient;
 
   constructor(zeebe: ZeebeGrpcClient, workerBase?: WorkerBase) {
@@ -16,14 +13,7 @@ export default class Camunda8Worker
     this.zeebe = zeebe;
   }
 
-  public registerTask(
-    taskType: string,
-    handler: (
-      variables: Record<string, any>,
-      params: any
-    ) => Promise<Record<string, any>>,
-    paramNames: string[]
-  ) {
+  public registerTask(taskType: string, handler: (variables: Record<string, any>, params: any) => Promise<Record<string, any>>, paramNames: string[]) {
     this.zeebe.createWorker({
       taskType,
       taskHandler: async (job) => {
@@ -32,10 +22,7 @@ export default class Camunda8Worker
           // create DI container
           di = this.diContainerTemplate.createContainer();
           // get objects to inject into handler
-          const params: any = { job }; // job is always injected
-          for (const paramName of paramNames) {
-            params[paramName] = await di.get(paramName);
-          }
+          const params: any = this.injectTaskParams(di, paramNames, { job });
           // call handler
           const variables = await handler(job.variables, params);
           // complete task
@@ -52,7 +39,15 @@ export default class Camunda8Worker
           }
           if (error instanceof Retry) {
             // handle retry
-            return job.fail(error.message, error.retries);
+            return job.fail({ retries: error.retries, retryBackOff: error.retryTimeout, errorMessage: error.message });
+          }
+          if (this.customErrorHandler && di) {
+            const params = this.injectTaskParams(di, paramNames, { job });
+            const retry = await this.customErrorHandler(error, params);
+            // handle retry
+            if (retry) {
+              return job.fail({ retries: retry.retries, retryBackOff: retry.retryTimeout, errorMessage: error.message });
+            }
           }
           // handle failure
           return job.fail(error.message);

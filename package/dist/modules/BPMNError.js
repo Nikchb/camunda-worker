@@ -1,6 +1,6 @@
 export default class BPMNError extends Error {
-    constructor(errorCode, errorMessage, variables) {
-        super(errorMessage);
+    constructor(errorCode, variables = {}, errorMessage) {
+        super(errorMessage !== null && errorMessage !== void 0 ? errorMessage : "");
         this.errorCode = errorCode;
         this.variables = variables;
     }

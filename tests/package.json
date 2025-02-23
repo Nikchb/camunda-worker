@@ -1,0 +1,21 @@
+{
+  "name": "camunda-worker-tests",
+  "version": "1.0.0",
+  "description": "Tests for camunda-worker",
+  "main": "index.test.js",
+  "type": "module",
+  "module": "NodeNext",
+  "scripts": {
+    "test": "npm ci && tsc && node ./dist/camunda8Test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "camunda-worker": "file:../package"
+  }
+}

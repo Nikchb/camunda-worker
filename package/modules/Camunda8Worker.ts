@@ -1,4 +1,5 @@
 import { ZeebeGrpcClient } from "@camunda8/sdk/dist/zeebe";
+import { Camunda8 } from "@camunda8/sdk";
 import { IDIContainer } from "ts-dependency-injection-container";
 import ICamundaWorker from "./ICamundaWorker.js";
 import WorkerBase from "./WorkerBase.js";
@@ -6,14 +7,17 @@ import BPMNError from "./BPMNError.js";
 import Retry from "./Retry.js";
 
 export default class Camunda8Worker extends WorkerBase implements ICamundaWorker {
+  private camunda8: Camunda8;
   private zeebe: ZeebeGrpcClient;
 
-  constructor(zeebe: ZeebeGrpcClient, workerBase?: WorkerBase) {
+  constructor(config: any, workerBase?: WorkerBase) {
     super(workerBase);
-    this.zeebe = zeebe;
+
+    this.camunda8 = new Camunda8(config);
+    this.zeebe = this.camunda8.getZeebeGrpcApiClient();
   }
 
-  public registerTask(taskType: string, handler: (variables: Record<string, any>, params: any) => Promise<Record<string, any>>, paramNames: string[]) {
+  public registerTask(taskType: string, handler: (variables: Record<string, any>, params: any) => Promise<Record<string, any>>, paramNames: string[] = []) {
     this.zeebe.createWorker({
       taskType,
       taskHandler: async (job) => {
@@ -22,7 +26,7 @@ export default class Camunda8Worker extends WorkerBase implements ICamundaWorker
           // create DI container
           di = this.diContainerTemplate.createContainer();
           // get objects to inject into handler
-          const params: any = this.injectTaskParams(di, paramNames, { job });
+          const params: any = await this.injectTaskParams(di, paramNames, { job });
           // call handler
           const variables = await handler(job.variables, params);
           // complete task
@@ -39,14 +43,14 @@ export default class Camunda8Worker extends WorkerBase implements ICamundaWorker
           }
           if (error instanceof Retry) {
             // handle retry
-            return job.fail({ retries: error.retries, retryBackOff: error.retryTimeout, errorMessage: error.message });
+            return job.fail({ retries: error.retries ?? job.retries - 1, retryBackOff: error.retryTimeout, errorMessage: error.message });
           }
           if (this.customErrorHandler && di) {
-            const params = this.injectTaskParams(di, paramNames, { job });
+            const params = await this.injectTaskParams(di, paramNames, { job });
             const retry = await this.customErrorHandler(error, params);
             // handle retry
             if (retry) {
-              return job.fail({ retries: retry.retries, retryBackOff: retry.retryTimeout, errorMessage: error.message });
+              return job.fail({ retries: retry.retries ?? job.retries - 1, retryBackOff: retry.retryTimeout, errorMessage: error.message });
             }
           }
           // handle failure

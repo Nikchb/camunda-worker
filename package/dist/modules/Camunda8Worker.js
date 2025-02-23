@@ -7,27 +7,27 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+import { Camunda8 } from "@camunda8/sdk";
 import WorkerBase from "./WorkerBase.js";
 import BPMNError from "./BPMNError.js";
 import Retry from "./Retry.js";
 export default class Camunda8Worker extends WorkerBase {
-    constructor(zeebe, workerBase) {
+    constructor(config, workerBase) {
         super(workerBase);
-        this.zeebe = zeebe;
+        this.camunda8 = new Camunda8(config);
+        this.zeebe = this.camunda8.getZeebeGrpcApiClient();
     }
-    registerTask(taskType, handler, paramNames) {
+    registerTask(taskType, handler, paramNames = []) {
         this.zeebe.createWorker({
             taskType,
             taskHandler: (job) => __awaiter(this, void 0, void 0, function* () {
+                var _a, _b;
                 let di;
                 try {
                     // create DI container
                     di = this.diContainerTemplate.createContainer();
                     // get objects to inject into handler
-                    const params = { job }; // job is always injected
-                    for (const paramName of paramNames) {
-                        params[paramName] = yield di.get(paramName);
-                    }
+                    const params = yield this.injectTaskParams(di, paramNames, { job });
                     // call handler
                     const variables = yield handler(job.variables, params);
                     // complete task
@@ -45,7 +45,15 @@ export default class Camunda8Worker extends WorkerBase {
                     }
                     if (error instanceof Retry) {
                         // handle retry
-                        return job.fail(error.message, error.retries);
+                        return job.fail({ retries: (_a = error.retries) !== null && _a !== void 0 ? _a : job.retries - 1, retryBackOff: error.retryTimeout, errorMessage: error.message });
+                    }
+                    if (this.customErrorHandler && di) {
+                        const params = yield this.injectTaskParams(di, paramNames, { job });
+                        const retry = yield this.customErrorHandler(error, params);
+                        // handle retry
+                        if (retry) {
+                            return job.fail({ retries: (_b = retry.retries) !== null && _b !== void 0 ? _b : job.retries - 1, retryBackOff: retry.retryTimeout, errorMessage: error.message });
+                        }
                     }
                     // handle failure
                     return job.fail(error.message);

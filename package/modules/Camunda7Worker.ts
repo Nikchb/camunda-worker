@@ -8,9 +8,9 @@ import Retry from "./Retry.js";
 export default class Camunda7Worker extends WorkerBase implements ICamundaWorker {
   private client: Client;
 
-  constructor(client: Client, workerBase?: WorkerBase) {
+  constructor(config: any, workerBase?: WorkerBase) {
     super(workerBase);
-    this.client = client;
+    this.client = new Client(config);
   }
 
   private mapProcessVariables(variables: Record<string, any>): Variables {
@@ -21,7 +21,7 @@ export default class Camunda7Worker extends WorkerBase implements ICamundaWorker
     return processVariables;
   }
 
-  public registerTask(taskType: string, handler: (variables: Record<string, any>, params: any) => Promise<Record<string, any>>, paramNames: string[]) {
+  public registerTask(taskType: string, handler: (variables: Record<string, any>, params: any) => Promise<Record<string, any>>, paramNames: string[] = []) {
     this.client.subscribe(taskType, async ({ task, taskService }: { task: Task; taskService: TaskService }) => {
       let di: IDIContainer | undefined;
       const localVariables = new Variables();
@@ -29,7 +29,7 @@ export default class Camunda7Worker extends WorkerBase implements ICamundaWorker
         // create DI container
         di = this.diContainerTemplate.createContainer();
         // get objects to inject into handler
-        const params: any = this.injectTaskParams(di, paramNames, { task, taskService });
+        const params: any = await this.injectTaskParams(di, paramNames, { task, taskService });
         // call handler
         const variables = await handler(task.variables.getAll(), params);
         // complete task
@@ -50,7 +50,7 @@ export default class Camunda7Worker extends WorkerBase implements ICamundaWorker
         }
         // check if custom error handler is set
         if (this.customErrorHandler && di) {
-          const params = this.injectTaskParams(di, paramNames);
+          const params = await this.injectTaskParams(di, paramNames, { task, taskService });
           const retry = await this.customErrorHandler(error, params);
           // handle retry
           if (retry) {

@@ -7,14 +7,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-import { Variables, } from "camunda-external-task-client-js";
+import { Client, Variables } from "camunda-external-task-client-js";
 import WorkerBase from "./WorkerBase.js";
 import BPMNError from "./BPMNError.js";
 import Retry from "./Retry.js";
 export default class Camunda7Worker extends WorkerBase {
-    constructor(client, workerBase) {
+    constructor(config, workerBase) {
         super(workerBase);
-        this.client = client;
+        this.client = new Client(config);
     }
     mapProcessVariables(variables) {
         const processVariables = new Variables();
@@ -23,18 +23,15 @@ export default class Camunda7Worker extends WorkerBase {
         }
         return processVariables;
     }
-    registerTask(taskType, handler, paramNames) {
-        this.client.subscribe(taskType, (_a) => __awaiter(this, [_a], void 0, function* ({ task, taskService, }) {
+    registerTask(taskType, handler, paramNames = []) {
+        this.client.subscribe(taskType, (_a) => __awaiter(this, [_a], void 0, function* ({ task, taskService }) {
             let di;
             const localVariables = new Variables();
             try {
                 // create DI container
                 di = this.diContainerTemplate.createContainer();
                 // get objects to inject into handler
-                const params = { task, taskService }; // task and taskService are always injected
-                for (const paramName of paramNames) {
-                    params[paramName] = yield di.get(paramName);
-                }
+                const params = yield this.injectTaskParams(di, paramNames, { task, taskService });
                 // call handler
                 const variables = yield handler(task.variables.getAll(), params);
                 // complete task
@@ -50,9 +47,22 @@ export default class Camunda7Worker extends WorkerBase {
                     // handle retry
                     return taskService.handleFailure(task, {
                         errorMessage: error.message,
-                        errorDetails: JSON.stringify(error),
                         retries: error.retries,
+                        retryTimeout: error.retryTimeout,
                     });
+                }
+                // check if custom error handler is set
+                if (this.customErrorHandler && di) {
+                    const params = yield this.injectTaskParams(di, paramNames, { task, taskService });
+                    const retry = yield this.customErrorHandler(error, params);
+                    // handle retry
+                    if (retry) {
+                        return taskService.handleFailure(task, {
+                            errorMessage: error.message,
+                            retries: retry.retries,
+                            retryTimeout: retry.retryTimeout,
+                        });
+                    }
                 }
                 // handle failure
                 return taskService.handleFailure(task, {

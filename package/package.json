@@ -1,7 +1,7 @@
 {
   "name": "camunda-worker",
   "version": "0.0.1",
-  "description": "Universal envelope over Camunda 7 and Camunda 8 workers with out of the box Dependency Injection support ",
+  "description": "Universal not official envelope over Camunda 7 and Camunda 8 workers with out of the box Dependency Injection support",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -10,7 +10,7 @@
     "build": "npm ci && tsc"
   },
   "author": "Nikita Chubko",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@camunda8/sdk": "^8.6.21",
     "camunda-external-task-client-js": "^3.1.0",

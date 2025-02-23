@@ -9,8 +9,8 @@
     "test": "npm ci && tsc && node ./dist/camunda8Test.js"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Nikita Chubko",
+  "license": "MIT",
   "devDependencies": {
     "@types/node": "^22.10.2",
     "typescript": "^5.7.2"

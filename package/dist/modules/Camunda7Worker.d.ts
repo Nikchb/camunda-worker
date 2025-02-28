@@ -4,5 +4,6 @@ export default class Camunda7Worker extends WorkerBase implements ICamundaWorker
     private client;
     constructor(config: any, workerBase?: WorkerBase);
     private mapProcessVariables;
+    stop(): Promise<void>;
     registerTask(taskType: string, handler: (variables: Record<string, any>, params: any) => Promise<Record<string, any>>, paramNames?: string[]): void;
 }

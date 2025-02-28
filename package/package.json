@@ -1,6 +1,6 @@
 {
   "name": "camunda-worker",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Universal not official envelope over Camunda 7 and Camunda 8 workers with out of the box Dependency Injection support",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

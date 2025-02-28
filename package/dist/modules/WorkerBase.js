@@ -10,6 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 import DIContainerTemplate from "ts-dependency-injection-container";
 export default class WorkerBase {
     constructor(workerBase) {
+        this.middlewares = [];
         if (workerBase) {
             // use container template from another worker
             this.diContainerTemplate = workerBase.getDIContainerTemplate();
@@ -34,6 +35,16 @@ export default class WorkerBase {
     }
     setCustomErrorHandler(handler) {
         this.customErrorHandler = handler;
+    }
+    addMiddleware(paramNames, middleware) {
+        this.middlewares.push({ paramNames, middleware });
+    }
+    executeMiddlewares(di, defaultParams) {
+        return __awaiter(this, void 0, void 0, function* () {
+            for (const { paramNames, middleware } of this.middlewares) {
+                yield middleware(yield this.injectTaskParams(di, paramNames, defaultParams));
+            }
+        });
     }
     injectTaskParams(di_1, paramNames_1) {
         return __awaiter(this, arguments, void 0, function* (di, paramNames, defaultParams = {}) {

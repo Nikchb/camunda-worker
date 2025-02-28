@@ -5,6 +5,8 @@ export default class WorkerBase {
   protected diContainerTemplate: DIContainerTemplate;
   protected customErrorHandler?: (error: any, params: any) => Promise<Retry | void>;
 
+  protected middlewares: { paramNames: string[]; middleware: (params: any) => Promise<void> }[] = [];
+
   constructor(workerBase?: WorkerBase) {
     if (workerBase) {
       // use container template from another worker
@@ -34,6 +36,16 @@ export default class WorkerBase {
 
   public setCustomErrorHandler(handler: (error: any, params: any) => Promise<Retry | void>) {
     this.customErrorHandler = handler;
+  }
+
+  public addMiddleware(paramNames: string[], middleware: (params: any) => Promise<void>) {
+    this.middlewares.push({ paramNames, middleware });
+  }
+
+  protected async executeMiddlewares(di: IDIContainer, defaultParams: any) {
+    for (const { paramNames, middleware } of this.middlewares) {
+      await middleware(await this.injectTaskParams(di, paramNames, defaultParams));
+    }
   }
 
   protected async injectTaskParams(di: IDIContainer, paramNames: string[], defaultParams: any = {}) {

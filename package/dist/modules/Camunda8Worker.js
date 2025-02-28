@@ -17,17 +17,25 @@ export default class Camunda8Worker extends WorkerBase {
         this.camunda8 = new Camunda8(config);
         this.zeebe = this.camunda8.getZeebeGrpcApiClient();
     }
+    stop() {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield this.zeebe.close();
+        });
+    }
     registerTask(taskType, handler, paramNames = []) {
         this.zeebe.createWorker({
             taskType,
             taskHandler: (job) => __awaiter(this, void 0, void 0, function* () {
                 var _a, _b;
                 let di;
+                const defaultParams = { job };
                 try {
                     // create DI container
                     di = this.diContainerTemplate.createContainer();
+                    // execute middlewares
+                    yield this.executeMiddlewares(di, defaultParams);
                     // get objects to inject into handler
-                    const params = yield this.injectTaskParams(di, paramNames, { job });
+                    const params = yield this.injectTaskParams(di, paramNames, defaultParams);
                     // call handler
                     const variables = yield handler(job.variables, params);
                     // complete task
@@ -48,7 +56,7 @@ export default class Camunda8Worker extends WorkerBase {
                         return job.fail({ retries: (_a = error.retries) !== null && _a !== void 0 ? _a : job.retries - 1, retryBackOff: error.retryTimeout, errorMessage: error.message });
                     }
                     if (this.customErrorHandler && di) {
-                        const params = yield this.injectTaskParams(di, paramNames, { job });
+                        const params = yield this.injectTaskParams(di, paramNames, defaultParams);
                         const retry = yield this.customErrorHandler(error, params);
                         // handle retry
                         if (retry) {

@@ -23,15 +23,23 @@ export default class Camunda7Worker extends WorkerBase {
         }
         return processVariables;
     }
+    stop() {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.client.stop();
+        });
+    }
     registerTask(taskType, handler, paramNames = []) {
         this.client.subscribe(taskType, (_a) => __awaiter(this, [_a], void 0, function* ({ task, taskService }) {
             let di;
             const localVariables = new Variables();
+            const defaultParams = { task, taskService };
             try {
                 // create DI container
                 di = this.diContainerTemplate.createContainer();
+                // execute middlewares
+                yield this.executeMiddlewares(di, defaultParams);
                 // get objects to inject into handler
-                const params = yield this.injectTaskParams(di, paramNames, { task, taskService });
+                const params = yield this.injectTaskParams(di, paramNames, defaultParams);
                 // call handler
                 const variables = yield handler(task.variables.getAll(), params);
                 // complete task
@@ -54,7 +62,7 @@ export default class Camunda7Worker extends WorkerBase {
                 }
                 // check if custom error handler is set
                 if (this.customErrorHandler && di) {
-                    const params = yield this.injectTaskParams(di, paramNames, { task, taskService });
+                    const params = yield this.injectTaskParams(di, paramNames, defaultParams);
                     const retry = yield this.customErrorHandler(error, params);
                     // handle retry
                     if (retry) {

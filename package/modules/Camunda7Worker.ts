@@ -21,17 +21,28 @@ export default class Camunda7Worker extends WorkerBase implements ICamundaWorker
     return processVariables;
   }
 
+  public async stop() {
+    this.client.stop();
+  }
+
   public registerTask(taskType: string, handler: (variables: Record<string, any>, params: any) => Promise<Record<string, any>>, paramNames: string[] = []) {
     this.client.subscribe(taskType, async ({ task, taskService }: { task: Task; taskService: TaskService }) => {
       let di: IDIContainer | undefined;
       const localVariables = new Variables();
+      const defaultParams = { task, taskService };
       try {
         // create DI container
         di = this.diContainerTemplate.createContainer();
+
+        // execute middlewares
+        await this.executeMiddlewares(di, defaultParams);
+
         // get objects to inject into handler
-        const params: any = await this.injectTaskParams(di, paramNames, { task, taskService });
+        const params: any = await this.injectTaskParams(di, paramNames, defaultParams);
+
         // call handler
         const variables = await handler(task.variables.getAll(), params);
+
         // complete task
         return taskService.complete(task, this.mapProcessVariables(variables), localVariables);
       } catch (error: any) {
@@ -51,7 +62,7 @@ export default class Camunda7Worker extends WorkerBase implements ICamundaWorker
         }
         // check if custom error handler is set
         if (this.customErrorHandler && di) {
-          const params = await this.injectTaskParams(di, paramNames, { task, taskService });
+          const params = await this.injectTaskParams(di, paramNames, defaultParams);
           const retry = await this.customErrorHandler(error, params);
           // handle retry
           if (retry) {

@@ -17,18 +17,29 @@ export default class Camunda8Worker extends WorkerBase implements ICamundaWorker
     this.zeebe = this.camunda8.getZeebeGrpcApiClient();
   }
 
+  public async stop() {
+    await this.zeebe.close();
+  }
+
   public registerTask(taskType: string, handler: (variables: Record<string, any>, params: any) => Promise<Record<string, any>>, paramNames: string[] = []) {
     this.zeebe.createWorker({
       taskType,
       taskHandler: async (job) => {
         let di: IDIContainer | undefined;
+        const defaultParams = { job };
         try {
           // create DI container
           di = this.diContainerTemplate.createContainer();
+
+          // execute middlewares
+          await this.executeMiddlewares(di, defaultParams);
+
           // get objects to inject into handler
-          const params: any = await this.injectTaskParams(di, paramNames, { job });
+          const params: any = await this.injectTaskParams(di, paramNames, defaultParams);
+
           // call handler
           const variables = await handler(job.variables, params);
+
           // complete task
           return job.complete(variables);
         } catch (error: any) {
@@ -46,7 +57,7 @@ export default class Camunda8Worker extends WorkerBase implements ICamundaWorker
             return job.fail({ retries: error.retries ?? job.retries - 1, retryBackOff: error.retryTimeout, errorMessage: error.message });
           }
           if (this.customErrorHandler && di) {
-            const params = await this.injectTaskParams(di, paramNames, { job });
+            const params = await this.injectTaskParams(di, paramNames, defaultParams);
             const retry = await this.customErrorHandler(error, params);
             // handle retry
             if (retry) {

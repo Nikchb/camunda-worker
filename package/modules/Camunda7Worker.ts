@@ -46,6 +46,7 @@ export default class Camunda7Worker extends WorkerBase implements ICamundaWorker
             errorMessage: error.message,
             retries: error.retries,
             retryTimeout: error.retryTimeout,
+            errorDetails: error.errorDetails,
           });
         }
         // check if custom error handler is set
@@ -58,6 +59,7 @@ export default class Camunda7Worker extends WorkerBase implements ICamundaWorker
               errorMessage: error.message,
               retries: retry.retries,
               retryTimeout: retry.retryTimeout,
+              errorDetails: retry.errorDetails,
             });
           }
         }

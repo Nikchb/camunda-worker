@@ -43,27 +43,33 @@ export default class Camunda8Worker extends WorkerBase implements ICamundaWorker
           // complete task
           return job.complete(variables);
         } catch (error: any) {
-          // handle error
-          if (error instanceof BPMNError) {
-            // handle bpmn error
-            return job.error({
-              errorCode: error.errorCode,
-              errorMessage: error.message,
-              variables: error.variables,
-            });
-          }
-          if (error instanceof Retry) {
-            // handle retry
-            return job.fail({ retries: error.retries ?? job.retries - 1, retryBackOff: error.retryTimeout, errorMessage: error.message });
-          }
-          if (this.customErrorHandler && di) {
-            const params = await this.injectTaskParams(di, paramNames, defaultParams);
-            const retry = await this.customErrorHandler(error, params);
-            // handle retry
-            if (retry) {
-              return job.fail({ retries: retry.retries ?? job.retries - 1, retryBackOff: retry.retryTimeout, errorMessage: error.message });
+          try {
+            // handle error
+            if (error instanceof BPMNError) {
+              // handle bpmn error
+              return job.error({
+                errorCode: error.errorCode,
+                errorMessage: error.message,
+                variables: error.variables,
+              });
             }
+            if (error instanceof Retry) {
+              // handle retry
+              return job.fail({ retries: error.retries ?? job.retries - 1, retryBackOff: error.retryTimeout, errorMessage: error.message });
+            }
+            if (this.customErrorHandler && di) {
+              const params = await this.injectTaskParams(di, paramNames, defaultParams);
+              const retry = await this.customErrorHandler(error, params);
+              // handle retry
+              if (retry) {
+                return job.fail({ retries: retry.retries ?? job.retries - 1, retryBackOff: retry.retryTimeout, errorMessage: error.message });
+              }
+            }
+          } catch (e: any) {
+            // handle failure
+            return job.fail(e.message);
           }
+
           // handle failure
           return job.fail(error.message);
         } finally {

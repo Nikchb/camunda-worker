@@ -46,33 +46,41 @@ export default class Camunda7Worker extends WorkerBase implements ICamundaWorker
         // complete task
         return taskService.complete(task, this.mapProcessVariables(variables), localVariables);
       } catch (error: any) {
-        // handle error
-        if (error instanceof BPMNError) {
-          // handle bpmn error
-          return taskService.handleBpmnError(task, error.errorCode, error.message, this.mapProcessVariables(error.variables));
-        }
-        if (error instanceof Retry) {
-          // handle retry
-          return taskService.handleFailure(task, {
-            errorMessage: error.message,
-            retries: error.retries,
-            retryTimeout: error.retryTimeout,
-            errorDetails: error.errorDetails,
-          });
-        }
-        // check if custom error handler is set
-        if (this.customErrorHandler && di) {
-          const params = await this.injectTaskParams(di, paramNames, defaultParams);
-          const retry = await this.customErrorHandler(error, params);
-          // handle retry
-          if (retry) {
+        try {
+          // handle error
+          if (error instanceof BPMNError) {
+            // handle bpmn error
+            return taskService.handleBpmnError(task, error.errorCode, error.message, this.mapProcessVariables(error.variables));
+          }
+          if (error instanceof Retry) {
+            // handle retry
             return taskService.handleFailure(task, {
               errorMessage: error.message,
-              retries: retry.retries,
-              retryTimeout: retry.retryTimeout,
-              errorDetails: retry.errorDetails,
+              retries: error.retries,
+              retryTimeout: error.retryTimeout,
+              errorDetails: error.errorDetails,
             });
           }
+          // check if custom error handler is set
+          if (this.customErrorHandler && di) {
+            const params = await this.injectTaskParams(di, paramNames, defaultParams);
+            const retry = await this.customErrorHandler(error, params);
+            // handle retry
+            if (retry) {
+              return taskService.handleFailure(task, {
+                errorMessage: error.message,
+                retries: retry.retries,
+                retryTimeout: retry.retryTimeout,
+                errorDetails: retry.errorDetails,
+              });
+            }
+          }
+        } catch (e: any) {
+          // handle failure
+          return taskService.handleFailure(task, {
+            errorMessage: e.message,
+            errorDetails: JSON.stringify(e),
+          });
         }
         // handle failure
         return taskService.handleFailure(task, {

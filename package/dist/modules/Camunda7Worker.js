@@ -46,33 +46,42 @@ export default class Camunda7Worker extends WorkerBase {
                 return taskService.complete(task, this.mapProcessVariables(variables), localVariables);
             }
             catch (error) {
-                // handle error
-                if (error instanceof BPMNError) {
-                    // handle bpmn error
-                    return taskService.handleBpmnError(task, error.errorCode, error.message, this.mapProcessVariables(error.variables));
-                }
-                if (error instanceof Retry) {
-                    // handle retry
-                    return taskService.handleFailure(task, {
-                        errorMessage: error.message,
-                        retries: error.retries,
-                        retryTimeout: error.retryTimeout,
-                        errorDetails: error.errorDetails,
-                    });
-                }
-                // check if custom error handler is set
-                if (this.customErrorHandler && di) {
-                    const params = yield this.injectTaskParams(di, paramNames, defaultParams);
-                    const retry = yield this.customErrorHandler(error, params);
-                    // handle retry
-                    if (retry) {
+                try {
+                    // handle error
+                    if (error instanceof BPMNError) {
+                        // handle bpmn error
+                        return taskService.handleBpmnError(task, error.errorCode, error.message, this.mapProcessVariables(error.variables));
+                    }
+                    if (error instanceof Retry) {
+                        // handle retry
                         return taskService.handleFailure(task, {
                             errorMessage: error.message,
-                            retries: retry.retries,
-                            retryTimeout: retry.retryTimeout,
-                            errorDetails: retry.errorDetails,
+                            retries: error.retries,
+                            retryTimeout: error.retryTimeout,
+                            errorDetails: error.errorDetails,
                         });
                     }
+                    // check if custom error handler is set
+                    if (this.customErrorHandler && di) {
+                        const params = yield this.injectTaskParams(di, paramNames, defaultParams);
+                        const retry = yield this.customErrorHandler(error, params);
+                        // handle retry
+                        if (retry) {
+                            return taskService.handleFailure(task, {
+                                errorMessage: error.message,
+                                retries: retry.retries,
+                                retryTimeout: retry.retryTimeout,
+                                errorDetails: retry.errorDetails,
+                            });
+                        }
+                    }
+                }
+                catch (e) {
+                    // handle failure
+                    return taskService.handleFailure(task, {
+                        errorMessage: e.message,
+                        errorDetails: JSON.stringify(e),
+                    });
                 }
                 // handle failure
                 return taskService.handleFailure(task, {

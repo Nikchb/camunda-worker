@@ -42,26 +42,32 @@ export default class Camunda8Worker extends WorkerBase {
                     return job.complete(variables);
                 }
                 catch (error) {
-                    // handle error
-                    if (error instanceof BPMNError) {
-                        // handle bpmn error
-                        return job.error({
-                            errorCode: error.errorCode,
-                            errorMessage: error.message,
-                            variables: error.variables,
-                        });
-                    }
-                    if (error instanceof Retry) {
-                        // handle retry
-                        return job.fail({ retries: (_a = error.retries) !== null && _a !== void 0 ? _a : job.retries - 1, retryBackOff: error.retryTimeout, errorMessage: error.message });
-                    }
-                    if (this.customErrorHandler && di) {
-                        const params = yield this.injectTaskParams(di, paramNames, defaultParams);
-                        const retry = yield this.customErrorHandler(error, params);
-                        // handle retry
-                        if (retry) {
-                            return job.fail({ retries: (_b = retry.retries) !== null && _b !== void 0 ? _b : job.retries - 1, retryBackOff: retry.retryTimeout, errorMessage: error.message });
+                    try {
+                        // handle error
+                        if (error instanceof BPMNError) {
+                            // handle bpmn error
+                            return job.error({
+                                errorCode: error.errorCode,
+                                errorMessage: error.message,
+                                variables: error.variables,
+                            });
                         }
+                        if (error instanceof Retry) {
+                            // handle retry
+                            return job.fail({ retries: (_a = error.retries) !== null && _a !== void 0 ? _a : job.retries - 1, retryBackOff: error.retryTimeout, errorMessage: error.message });
+                        }
+                        if (this.customErrorHandler && di) {
+                            const params = yield this.injectTaskParams(di, paramNames, defaultParams);
+                            const retry = yield this.customErrorHandler(error, params);
+                            // handle retry
+                            if (retry) {
+                                return job.fail({ retries: (_b = retry.retries) !== null && _b !== void 0 ? _b : job.retries - 1, retryBackOff: retry.retryTimeout, errorMessage: error.message });
+                            }
+                        }
+                    }
+                    catch (e) {
+                        // handle failure
+                        return job.fail(e.message);
                     }
                     // handle failure
                     return job.fail(error.message);
